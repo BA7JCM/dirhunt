@@ -158,7 +158,7 @@ async def hunt(urls, threads, exclude_flags, include_flags, interesting_extensio
             crawler.resume(crawler.get_resume_file())
         except IncompatibleVersionError as e:
             click.echo(e)
-    crawler.add_init_urls(*urls)
+    await crawler.add_init_urls(*urls)
     while True:
         choice = catch_keyboard_interrupt_choices(crawler.print_results, ['abort', 'continue', 'results'], 'a')\
             (set(exclude_flags), set(include_flags))

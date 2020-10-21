@@ -3,6 +3,7 @@ import sys
 import threading
 import warnings
 
+from aiohttp import ClientSession, TCPConnector
 from requests import Timeout
 from requests.adapters import HTTPAdapter
 from requests.exceptions import ProxyError
@@ -82,13 +83,13 @@ class Session(object):
         self.sessions = sessions
         self.proxy_name = proxy
         self.proxy = normalize_proxy(self.proxy_name, sessions)
-        self.session = requests.Session()
+        self.session = ClientSession(connector=TCPConnector(verify_ssl=False))
         self.session.headers = {
             'User-Agent': user_agent or get_random_user_agent(),
         }
-        adapter = HTTPAdapter(pool_connections=POOL_CONNECTIONS, pool_maxsize=POOL_CONNECTIONS)
-        self.session.mount('http://', adapter)
-        self.session.mount('https://', adapter)
+        # adapter = HTTPAdapter(pool_connections=POOL_CONNECTIONS, pool_maxsize=POOL_CONNECTIONS)
+        # self.session.mount('http://', adapter)
+        # self.session.mount('https://', adapter)
 
     @lock
     def get(self, url, **kwargs):

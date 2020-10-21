@@ -75,7 +75,7 @@ class ProcessBase(object):
         # TODO: hay que pensar en no pasar response, text y soup por aquí para establecerlo en self,
         # para no llenar la memoria. Deben ser cosas "volátiles".
         if response is not None:
-            self.status_code = response.status_code
+            self.status_code = response.status
         # TODO: procesar otras cosas (css, etc.)
         self.crawler_url = crawler_url
 
@@ -199,7 +199,7 @@ class ProcessRedirect(ProcessBase):
 
     @classmethod
     def is_applicable(cls, request, text, crawler_url, soup):
-        return 300 <= request.status_code < 400
+        return 300 <= request.status < 400
 
     def __str__(self):
         body = super(ProcessRedirect, self).__str__()
@@ -249,7 +249,7 @@ class ProcessCssStyleSheet(ProcessBase):
 
     @classmethod
     def is_applicable(cls, response, text, crawler_url, soup):
-        return response.headers.get('Content-Type', '').lower().startswith('text/css') and response.status_code < 300
+        return response.headers.get('Content-Type', '').lower().startswith('text/css') and response.status < 300
 
 
 class ProcessJavaScript(ProcessBase):
@@ -268,7 +268,7 @@ class ProcessJavaScript(ProcessBase):
     @classmethod
     def is_applicable(cls, response, text, crawler_url, soup):
         return response.headers.get('Content-Type', '').lower().startswith('application/javascript') and \
-               response.status_code < 300
+               response.status < 300
 
 
 class ProcessHtmlRequest(ProcessBase):
@@ -323,7 +323,7 @@ class ProcessHtmlRequest(ProcessBase):
 
     @classmethod
     def is_applicable(cls, response, text, crawler_url, soup):
-        return response.headers.get('Content-Type', '').lower().startswith('text/html') and response.status_code < 300 \
+        return response.headers.get('Content-Type', '').lower().startswith('text/html') and response.status < 300 \
                and soup is not None
 
 

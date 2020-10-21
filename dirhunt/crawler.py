@@ -65,14 +65,14 @@ class Crawler(ThreadPoolExecutor):
         self.current_processed_count = 0
         self.to_file = to_file
 
-    def add_init_urls(self, *urls):
+    async def add_init_urls(self, *urls):
         """Add urls to queue.
         """
         for crawler_url in urls:
             if not isinstance(crawler_url, CrawlerUrl):
                 crawler_url = CrawlerUrl(self, crawler_url, depth=self.depth, timeout=self.timeout)
             self.add_domain(crawler_url.url.only_domain)
-            self.add_url(crawler_url)
+            await self.add_url(crawler_url)
 
     def in_domains(self, domain):
         if self.not_follow_subdomains and domain not in self.domains:
@@ -95,7 +95,7 @@ class Crawler(ThreadPoolExecutor):
         self.domains.add(domain)
         self.sources.add_domain(domain)
 
-    def add_url(self, crawler_url, force=False):
+    async def add_url(self, crawler_url, force=False):
         """Add url to queue"""
         if not isinstance(crawler_url, CrawlerUrl):
             crawler_url = CrawlerUrl(self, crawler_url, depth=self.depth, timeout=self.timeout)
@@ -108,17 +108,18 @@ class Crawler(ThreadPoolExecutor):
             self.add_lock.release()
             return self.processing.get(url.url) or self.processed.get(url.url)
 
-        fn = reraise_with_stack(crawler_url.start)
-        if self.closing:
-            self.add_lock.release()
-            return
-        if force:
-            future = ThreadPoolExecutor(max_workers=1).submit(fn)
-        else:
-            future = self.submit(fn)
-        self.processing[url.url] = future
-        self.add_lock.release()
-        return future
+        # fn = reraise_with_stack(crawler_url.start)
+        await crawler_url.start()
+        # if self.closing:
+        #     self.add_lock.release()
+        #     return
+        # if force:
+        #     future = ThreadPoolExecutor(max_workers=1).submit(fn)
+        # else:
+        #     future = self.submit(fn)
+        # self.processing[url.url] = future
+        # self.add_lock.release()
+        # return future
 
     def add_message(self, body):
         from dirhunt.processors import Message

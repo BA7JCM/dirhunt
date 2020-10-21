@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import socket
 
+from aiohttp import ClientError
 from bs4 import BeautifulSoup
 from requests import RequestException
 from urllib3.exceptions import ReadTimeoutError
@@ -47,25 +48,28 @@ class CrawlerUrl(object):
                                             timeout=self.timeout))
             # TODO: si no se puede añadir porque ya se ha añadido, establecer como que ya existe si la orden es exists
 
-    def start(self):
+    async def start(self):
         from dirhunt.processors import get_processor, GenericProcessor, Error, ProcessIndexOfRequest
 
         session = self.crawler.sessions.get_session()
         try:
-            resp = session.get(self.url.url, stream=True, verify=False, timeout=self.timeout, allow_redirects=False)
-        except RequestException as e:
+            # resp = session.get(self.url.url, stream=True, verify=False, timeout=self.timeout, allow_redirects=False)
+            req = session.get(self.url.url, timeout=self.timeout, allow_redirects=False)
+            async with req as resp:
+                pass
+        except ClientError as e:
             self.crawler.current_processed_count += 1
             self.crawler.results.put(Error(self, e))
             self.close()
             return self
 
         self.set_type(resp.headers.get('Content-Type'))
-        self.flags.add(str(resp.status_code))
+        self.flags.add(str(resp.status))
 
         text = ''
         soup = None
         processor = None
-        if resp.status_code < 300 and self.must_be_downloaded(resp):
+        if resp.status < 300 and self.must_be_downloaded(resp):
             try:
                 text = resp.raw.read(MAX_RESPONSE_SIZE, decode_content=True)
             except (RequestException, ReadTimeoutError, socket.timeout) as e:
@@ -87,7 +91,7 @@ class CrawlerUrl(object):
         else:
             self.crawler.current_processed_count += 1
         # TODO: Podemos fijarnos en el processor.index_file. Si existe y es un 200, entonces es que existe.
-        if self.exists is None and resp.status_code < 404:
+        if self.exists is None and resp.status < 404:
             self.exists = True
         self.add_self_directories(True if (not self.maybe_rewrite() and self.exists) else None,
                                   'directory' if not self.maybe_rewrite() else None)
