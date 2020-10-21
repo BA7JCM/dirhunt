@@ -3,4 +3,4 @@ from dirhunt.exceptions import catch
 from dirhunt.management import hunt
 
 if __name__ == '__main__':
-    catch(hunt)()
+    hunt(_anyio_backend="asyncio")

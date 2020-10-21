@@ -3,7 +3,7 @@
 from __future__ import print_function
 
 import re
-import click as click
+import asyncclick as click
 import os
 
 import sys
@@ -125,11 +125,12 @@ def flags_range(flags):
               help='Delay between requests to avoid bans by the server')
 @click.option('--not-allow-redirects', is_flag=True, help='Redirectors will not be followed')
 @click.option('--limit', type=int, default=1000, help='Max number of pages processed to search for directories.')
-@click.option('--to-file', type=Path(writable=True), default=None, help='Create a report file in JSON.')
+# @click.option('--to-file', type=Path(writable=True), default=None, help='Create a report file in JSON.')
+@click.option('--to-file', type=str, default=None, help='Create a report file in JSON.')
 @click.option('--user-agent', type=str, default=None, help='User agent to use. By default a random browser.')
 @click.option('--version', is_flag=True, callback=print_version,
               expose_value=False, is_eager=True)
-def hunt(urls, threads, exclude_flags, include_flags, interesting_extensions, interesting_files, stdout_flags,
+async def hunt(urls, threads, exclude_flags, include_flags, interesting_extensions, interesting_files, stdout_flags,
          progress_enabled, timeout, max_depth, not_follow_subdomains, exclude_sources, proxies, delay,
          not_allow_redirects, limit, to_file, user_agent):
     """Find web directories without bruteforce
