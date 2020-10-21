@@ -42,21 +42,37 @@ class CrawlerUrl(object):
         self.resp = None
         self.processor_data = None
 
-    def add_self_directories(self, exists=None, type_=None):
+    async def add_self_directories(self, exists=None, type_=None):
         for url in self.url.breadcrumb():
-            self.crawler.add_url(CrawlerUrl(self.crawler, url, self.depth - 1, self, exists, type_,
-                                            timeout=self.timeout))
+            await self.crawler.add_url(CrawlerUrl(self.crawler, url, self.depth - 1, self, exists, type_,
+                                                  timeout=self.timeout))
             # TODO: si no se puede añadir porque ya se ha añadido, establecer como que ya existe si la orden es exists
 
     async def start(self):
         from dirhunt.processors import get_processor, GenericProcessor, Error, ProcessIndexOfRequest
 
         session = self.crawler.sessions.get_session()
+        text = ''
+        soup = None
+        processor = None
+
         try:
             # resp = session.get(self.url.url, stream=True, verify=False, timeout=self.timeout, allow_redirects=False)
+            print(f'Request url {self.url.url}')
             req = session.get(self.url.url, timeout=self.timeout, allow_redirects=False)
             async with req as resp:
-                pass
+                if resp.status < 300 and self.must_be_downloaded(resp):
+                    try:
+                        text = await resp.content.read(MAX_RESPONSE_SIZE)
+                    except (RequestException, ReadTimeoutError, socket.timeout) as e:
+                        self.crawler.current_processed_count += 1
+                        self.crawler.results.put(Error(self, e))
+                        self.close()
+                        return self
+                    else:
+                        text = text.decode(resp.charset, errors='ignore')
+                    soup = BeautifulSoup(text, 'html.parser') if resp.headers.get(
+                        'Content-Type') == 'text/html' else None
         except ClientError as e:
             self.crawler.current_processed_count += 1
             self.crawler.results.put(Error(self, e))
@@ -66,21 +82,24 @@ class CrawlerUrl(object):
         self.set_type(resp.headers.get('Content-Type'))
         self.flags.add(str(resp.status))
 
-        text = ''
-        soup = None
-        processor = None
-        if resp.status < 300 and self.must_be_downloaded(resp):
-            try:
-                text = resp.raw.read(MAX_RESPONSE_SIZE, decode_content=True)
-            except (RequestException, ReadTimeoutError, socket.timeout) as e:
-                self.crawler.current_processed_count += 1
-                self.crawler.results.put(Error(self, e))
-                self.close()
-                return self
-            soup = BeautifulSoup(text, 'html.parser') if resp.headers.get('Content-Type') == 'text/html' else None
+        # text = ''
+        # soup = None
+        # processor = None
+        # if resp.status < 300 and self.must_be_downloaded(resp):
+        #     try:
+        #         print(self.url.url)
+        #         text = await resp.content.read(MAX_RESPONSE_SIZE)
+        #     except (RequestException, ReadTimeoutError, socket.timeout) as e:
+        #         self.crawler.current_processed_count += 1
+        #         self.crawler.results.put(Error(self, e))
+        #         self.close()
+        #         return self
+        #     else:
+        #         text = text.decode(resp.charset, errors='ignore')
+        #     soup = BeautifulSoup(text, 'html.parser') if resp.headers.get('Content-Type') == 'text/html' else None
         if self.must_be_downloaded(resp):
             processor = get_processor(resp, text, self, soup) or GenericProcessor(resp, self)
-            processor.process(text, soup)
+            await processor.process(text, soup)
             self.flags.update(processor.flags)
         if self.maybe_directory():
             self.crawler.results.put(processor)
@@ -93,8 +112,8 @@ class CrawlerUrl(object):
         # TODO: Podemos fijarnos en el processor.index_file. Si existe y es un 200, entonces es que existe.
         if self.exists is None and resp.status < 404:
             self.exists = True
-        self.add_self_directories(True if (not self.maybe_rewrite() and self.exists) else None,
-                                  'directory' if not self.maybe_rewrite() else None)
+        await self.add_self_directories(True if (not self.maybe_rewrite() and self.exists) else None,
+                                        'directory' if not self.maybe_rewrite() else None)
         self.close()
         return self
 
@@ -130,7 +149,7 @@ class CrawlerUrl(object):
 
     def close(self):
         self.crawler.processed[self.url.url] = self
-        del self.crawler.processing[self.url.url]
+        # TODO: del self.crawler.processing[self.url.url]
 
     def json(self):
         return {

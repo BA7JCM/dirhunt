@@ -159,20 +159,21 @@ async def hunt(urls, threads, exclude_flags, include_flags, interesting_extensio
         except IncompatibleVersionError as e:
             click.echo(e)
     await crawler.add_init_urls(*urls)
-    while True:
-        choice = catch_keyboard_interrupt_choices(crawler.print_results, ['abort', 'continue', 'results'], 'a')\
-            (set(exclude_flags), set(include_flags))
-        if choice == 'a':
-            crawler.close(True)
-            click.echo('Created resume file "{}". Run again using the same parameters to resume.'.format(
-                crawler.get_resume_file())
-            )
-            return
-        elif choice == 'c':
-            crawler.restart()
-            continue
-        else:
-            break
+    # await crawler.print_results()
+    # while True:
+    #     choice = catch_keyboard_interrupt_choices(crawler.print_results, ['abort', 'continue', 'results'], 'a')\
+    #         (set(exclude_flags), set(include_flags))
+    #     if choice == 'a':
+    #         crawler.close(True)
+    #         click.echo('Created resume file "{}". Run again using the same parameters to resume.'.format(
+    #             crawler.get_resume_file())
+    #         )
+    #         return
+    #     elif choice == 'c':
+    #         crawler.restart()
+    #         continue
+    #     else:
+    #         break
     crawler.print_urls_info()
     if not sys.stdout.isatty():
         output_urls(crawler, stdout_flags)

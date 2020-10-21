@@ -71,7 +71,7 @@ class Crawler(ThreadPoolExecutor):
         for crawler_url in urls:
             if not isinstance(crawler_url, CrawlerUrl):
                 crawler_url = CrawlerUrl(self, crawler_url, depth=self.depth, timeout=self.timeout)
-            self.add_domain(crawler_url.url.only_domain)
+            await self.add_domain(crawler_url.url.only_domain)
             await self.add_url(crawler_url)
 
     def in_domains(self, domain):
@@ -89,27 +89,31 @@ class Crawler(ThreadPoolExecutor):
                 return False
             domain = '.'.join(parts[1:])
 
-    def add_domain(self, domain):
+    async def add_domain(self, domain):
         if domain in self.domains:
             return
         self.domains.add(domain)
-        self.sources.add_domain(domain)
+        await self.sources.add_domain(domain)
 
     async def add_url(self, crawler_url, force=False):
         """Add url to queue"""
         if not isinstance(crawler_url, CrawlerUrl):
             crawler_url = CrawlerUrl(self, crawler_url, depth=self.depth, timeout=self.timeout)
-        self.add_lock.acquire()
+        # self.add_lock.acquire()
         url = crawler_url.url
-        if not url.is_valid() or not url.only_domain or not self.in_domains(url.only_domain):
-            self.add_lock.release()
-            return
-        if url.url in self.processing or url.url in self.processed:
-            self.add_lock.release()
-            return self.processing.get(url.url) or self.processed.get(url.url)
+        # if not url.is_valid() or not url.only_domain or not self.in_domains(url.only_domain):
+        #     self.add_lock.release()
+        #     return
+        # if url.url in self.processing or url.url in self.processed:
+        #     self.add_lock.release()
+        #     return self.processing.get(url.url) or self.processed.get(url.url)
 
         # fn = reraise_with_stack(crawler_url.start)
-        await crawler_url.start()
+        if url.url in self.processing:
+            return self.processing[url.url]
+        future = crawler_url.start()
+        self.processing[url.url] = future
+        return await future
         # if self.closing:
         #     self.add_lock.release()
         #     return
@@ -151,7 +155,7 @@ class Crawler(ThreadPoolExecutor):
             (humanize.naturaldelta if finished else humanize.naturaltime)(datetime.datetime.now() - self.start_dt),
         ))
 
-    def print_results(self, exclude=None, include=None):
+    async def print_results(self, exclude=None, include=None):
         exclude = exclude or set()
         self.echo('Starting...')
         while True:

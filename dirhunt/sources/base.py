@@ -7,8 +7,8 @@ class Source(Pool):
         self.result_callback = result_callback
         self.error_callback = error_callback
 
-    def add_domain(self, domain):
-        self.submit(domain)
+    async def add_domain(self, domain):
+        await self.submit(domain)
 
     def callback(self, domain):
         raise NotImplementedError

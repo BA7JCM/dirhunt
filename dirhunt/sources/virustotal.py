@@ -11,10 +11,10 @@ ABUSE_MESSAGE_ERROR = "VirusTotal abuse has failed (scraping detected). Validate
 
 
 class VirusTotal(Source):
-    def callback(self, domain):
+    async def callback(self, domain):
         url = VT_URL.format(domain=domain)
         session = Sessions().get_session()
-        html = session.get(url).text
+        html = await session.get(url).text
         if ABUSE in html:
             self.add_error(ABUSE_MESSAGE_ERROR.format(url=url))
             return

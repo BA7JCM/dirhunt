@@ -21,9 +21,9 @@ class Sources(object):
         self.sources = [cls(self.callback, error_callback)
                         for cls in SOURCE_CLASSES if get_source_name(cls) not in excluded_sources]
 
-    def add_domain(self, domain):
+    async def add_domain(self, domain):
         for source in self.sources:
-            source.add_domain(domain)
+            await source.add_domain(domain)
 
     def finished(self):
         for source in self.sources:

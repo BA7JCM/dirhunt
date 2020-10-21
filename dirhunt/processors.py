@@ -79,19 +79,19 @@ class ProcessBase(object):
         # TODO: procesar otras cosas (css, etc.)
         self.crawler_url = crawler_url
 
-    def search_index_files(self):
+    async def search_index_files(self):
         if self.crawler_url.type not in ['directory', None]:
             return
         crawler = self.crawler_url.crawler
         for index_file in INDEX_FILES:
             url = self.crawler_url.url.copy()
             url.set_children(index_file)
-            future = self.crawler_url.crawler.add_url(
+            print(f'Added url {url}')
+            result = await self.crawler_url.crawler.add_url(
                 CrawlerUrl(crawler, url, self.crawler_url.depth - 1, self, None, 'document',
                            timeout=self.crawler_url.timeout), True)
             if self.crawler_url.crawler.closing:
                 return
-            result = future.result()
             if result.exists:
                 self.index_file = url
                 break
@@ -100,7 +100,7 @@ class ProcessBase(object):
     def is_applicable(cls, request, text, crawler_url, soup):
         raise NotImplementedError
 
-    def process(self, text, soup=None):
+    async def process(self, text, soup=None):
         raise NotImplementedError
 
     @property
@@ -116,11 +116,12 @@ class ProcessBase(object):
         body += colored(' ({})'.format(self.name or self.__class__.__name__), Fore.LIGHTYELLOW_EX)
         return body
 
-    def add_url(self, url, depth=3, **kwargs):
+    async def add_url(self, url, depth=3, **kwargs):
+        print(f'Added processor url {url}')
         if is_url_loop(url):
             return
-        return self.crawler_url.crawler.add_url(CrawlerUrl(self.crawler_url.crawler, url, depth, self.crawler_url,
-                                                           timeout=self.crawler_url.timeout, **kwargs))
+        return await self.crawler_url.crawler.add_url(CrawlerUrl(self.crawler_url.crawler, url, depth, self.crawler_url,
+                                                                 timeout=self.crawler_url.timeout, **kwargs))
 
     def __str__(self):
         body = self.url_line()
@@ -147,7 +148,7 @@ class Error(ProcessBase):
         super(Error, self).__init__(None, crawler_url)
         self.error = error
 
-    def process(self, text, soup=None):
+    async def process(self, text, soup=None):
         pass
 
     def __str__(self):
@@ -180,8 +181,8 @@ class GenericProcessor(ProcessBase):
     name = 'Generic'
     key_name = 'generic'
 
-    def process(self, text, soup=None):
-        self.search_index_files()
+    async def process(self, text, soup=None):
+        await self.search_index_files()
 
 
 class ProcessRedirect(ProcessBase):
@@ -193,9 +194,9 @@ class ProcessRedirect(ProcessBase):
         super(ProcessRedirect, self).__init__(response, crawler_url)
         self.redirector = full_url_address(response.headers.get('Location'), self.crawler_url.url)
 
-    def process(self, text, soup=None):
+    async def process(self, text, soup=None):
         if not self.crawler_url.crawler.not_allow_redirects:
-            self.add_url(self.redirector)
+            await self.add_url(self.redirector)
 
     @classmethod
     def is_applicable(cls, request, text, crawler_url, soup):
@@ -212,12 +213,12 @@ class ProcessNotFound(ProcessBase):
     name = 'Not Found'
     key_name = 'not_found'
 
-    def process(self, text, soup=None):
+    async def process(self, text, soup=None):
         self.search_index_files()
 
     @classmethod
     def is_applicable(cls, request, text, crawler_url, soup):
-        return request.status_code == 404
+        return request.status == 404
 
     def __str__(self):
         body = self.url_line()
@@ -239,12 +240,12 @@ class ProcessCssStyleSheet(ProcessBase):
     name = 'CSS StyleSheet'
     key_name = 'css'
 
-    def process(self, text, soup=None):
+    async def process(self, text, soup=None):
         if sys.version_info > (3,) and isinstance(text, bytes):
             text = text.decode('utf-8')
         urls = [full_url_address(url, self.crawler_url.url) for url in re.findall(': *url\(["\']?(.+?)["\']?\)', text)]
         for url in urls:
-            self.add_url(url, depth=0, type='asset')
+            await self.add_url(url, depth=0, type='asset')
         return urls
 
     @classmethod
@@ -256,13 +257,13 @@ class ProcessJavaScript(ProcessBase):
     name = 'JavaScript'
     key_name = 'js'
 
-    def process(self, text, soup=None):
+    async def process(self, text, soup=None):
         if sys.version_info > (3,) and isinstance(text, bytes):
             text = text.decode('utf-8')
         urls = [full_url_address(url[0], self.crawler_url.url)
                 for url in re.findall(TEXT_PLAIN_PATH_STRING_REGEX, text, re.VERBOSE)]
         for url in urls:
-            self.add_url(url, depth=0, type='asset')
+            await self.add_url(url, depth=0, type='asset')
         return urls
 
     @classmethod
@@ -275,12 +276,12 @@ class ProcessHtmlRequest(ProcessBase):
     name = 'HTML document'
     key_name = 'html'
 
-    def process(self, text, soup=None):
-        self.assets(soup)
-        self.links(soup)
-        self.search_index_files()
+    async def process(self, text, soup=None):
+        await self.assets(soup)
+        await self.links(soup)
+        await self.search_index_files()
 
-    def links(self, soup):
+    async def links(self, soup):
         links = [full_url_address(link.attrs.get('href'), self.crawler_url.url)
                  for link in soup.find_all('a')]
         metas = filter(lambda meta: meta.attrs.get('http-equiv', '').lower() == 'refresh', soup.find_all('meta'))
@@ -297,9 +298,9 @@ class ProcessHtmlRequest(ProcessBase):
                 depth -= 1
             if depth <= 0:
                 continue
-            self.add_url(link, depth)
+            await self.add_url(link, depth)
 
-    def assets(self, soup):
+    async def assets(self, soup):
         assets = [full_url_address(link.attrs.get('href'), self.crawler_url.url)
                   for link in soup.find_all('link')]
         assets += [full_url_address(script.attrs.get('src'), self.crawler_url.url)
@@ -308,7 +309,7 @@ class ProcessHtmlRequest(ProcessBase):
                    for img in soup.find_all('img')]
         for asset in filter(bool, assets):
             self.analyze_asset(asset)
-            self.add_url(asset, type='asset')
+            await self.add_url(asset, type='asset')
 
     def analyze_asset(self, asset):
         """
@@ -333,11 +334,11 @@ class ProcessIndexOfRequest(ProcessHtmlRequest):
     files = None
     index_titles = ('index of', 'directory listing for')
 
-    def process(self, text, soup=None):
+    async def process(self, text, soup=None):
         directory_list = get_directory_list(text, self, soup)
         links = [link for link in directory_list.get_links(text, soup) if link.is_valid()]
         for link in filter(lambda x: x.is_valid() and x.url.endswith('/'), links):
-            self.add_url(link, type='directory')
+            await self.add_url(link, type='directory')
         self.files = links
 
     def interesting_ext_files(self):
