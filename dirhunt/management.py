@@ -174,7 +174,7 @@ async def hunt(urls, threads, exclude_flags, include_flags, interesting_extensio
     #         continue
     #     else:
     #         break
-    crawler.print_urls_info()
+    await crawler.print_urls_info()
     if not sys.stdout.isatty():
         output_urls(crawler, stdout_flags)
     if to_file:

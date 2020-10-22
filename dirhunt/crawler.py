@@ -180,14 +180,14 @@ class Crawler(ThreadPoolExecutor):
                 self.print_progress(True)
                 return
 
-    def print_urls_info(self):
+    async def print_urls_info(self):
         if not self.index_of_processors:
             self.echo(r'No interesting files detected ¯\_(ツ)_/¯')
             return
         self.echo('━' * get_terminal_size()[0])
         self.urls_info = UrlsInfo(self.index_of_processors, self.sessions, self.std, self._max_workers,
                                   self.progress_enabled, self.timeout, bool(self.to_file))
-        self.urls_info.start()
+        await self.urls_info.start()
 
     def restart(self):
         try:

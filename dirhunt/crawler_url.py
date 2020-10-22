@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import socket
+from logging import getLogger
 
 from aiohttp import ClientError
 from bs4 import BeautifulSoup
@@ -15,6 +16,9 @@ FLAGS_WEIGHT = {
     'not_found.fake': 3,
     'html': 2,
 }
+
+
+logger = getLogger(__name__)
 
 
 class CrawlerUrl(object):
@@ -58,7 +62,7 @@ class CrawlerUrl(object):
 
         try:
             # resp = session.get(self.url.url, stream=True, verify=False, timeout=self.timeout, allow_redirects=False)
-            print(f'Request url {self.url.url}')
+            logger.debug(f'Request url {self.url.url}')
             req = session.get(self.url.url, timeout=self.timeout, allow_redirects=False)
             async with req as resp:
                 if resp.status < 300 and self.must_be_downloaded(resp):
@@ -70,7 +74,7 @@ class CrawlerUrl(object):
                         self.close()
                         return self
                     else:
-                        text = text.decode(resp.charset, errors='ignore')
+                        text = text.decode(resp.charset or 'utf-8', errors='ignore')
                     soup = BeautifulSoup(text, 'html.parser') if resp.headers.get(
                         'Content-Type') == 'text/html' else None
         except ClientError as e:

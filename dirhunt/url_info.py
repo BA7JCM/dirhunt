@@ -219,7 +219,7 @@ class UrlsInfo(Pool):
             for file in processor.interesting_files():
                 yield file
 
-    def start(self):
+    async def start(self):
         self.echo('Starting...')
         self.count = 0
         url_len = 0
@@ -230,7 +230,7 @@ class UrlsInfo(Pool):
             self.count += 1
         for file in self.getted_interesting_files():
             # TODO: issue #26. Añadir len() de contenido extra
-            self.submit(url_len, extra_len, file)
+            await self.submit(url_len, extra_len, file)
         out = ''
         if self.empty_files:
             out += 'Empty files: {} '.format(self.empty_files)

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import re
 import sys
+from logging import getLogger
 
 from dirhunt.directory_lists import get_directory_list
 
@@ -61,6 +62,9 @@ TEXT_PLAIN_PATH_STRING_REGEX = r"""
 """
 
 
+logger = getLogger(__name__)
+
+
 class ProcessBase(object):
     name = ''
     key_name = ''
@@ -86,7 +90,7 @@ class ProcessBase(object):
         for index_file in INDEX_FILES:
             url = self.crawler_url.url.copy()
             url.set_children(index_file)
-            print(f'Added url {url}')
+            logger.debug(f'Added url {url}')
             result = await self.crawler_url.crawler.add_url(
                 CrawlerUrl(crawler, url, self.crawler_url.depth - 1, self, None, 'document',
                            timeout=self.crawler_url.timeout), True)
@@ -117,7 +121,7 @@ class ProcessBase(object):
         return body
 
     async def add_url(self, url, depth=3, **kwargs):
-        print(f'Added processor url {url}')
+        logger.debug(f'Added processor url {url}')
         if is_url_loop(url):
             return
         return await self.crawler_url.crawler.add_url(CrawlerUrl(self.crawler_url.crawler, url, depth, self.crawler_url,
